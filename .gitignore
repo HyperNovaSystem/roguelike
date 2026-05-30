@@ -1,0 +1,15 @@
+# dependencies / build output
+node_modules/
+dist/
+*.tgz
+
+# logs & caches
+*.log
+*.tsbuildinfo
+.vite/
+vite.config.ts.timestamp-*
+
+# editor / tooling
+.claude/
+.vscode/
+.DS_Store
