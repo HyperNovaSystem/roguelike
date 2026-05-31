@@ -1,6 +1,6 @@
 import {
   And,
-  Changed,
+  OnChanged,
   createWorld,
   defineEvent,
   entry,
@@ -102,7 +102,7 @@ export function createRoguelike(options: RoguelikeOptions = {}): {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1
-      const kind: 'floor' | 'wall' = edge || world.rand.next() < 0.08 ? 'wall' : 'floor'
+      const kind: 'floor' | 'wall' = edge || world.rand.uniform() < 0.08 ? 'wall' : 'floor'
       world.spawn([
         entry(Position, { x, y }),
         entry(Tile, { kind }),
@@ -162,8 +162,8 @@ export function createRoguelike(options: RoguelikeOptions = {}): {
     const spanY = Math.max(1, maxY - minY + 1)
     const attempts = Math.max(64, width * height * 2)
     for (let i = 0; i < attempts; i++) {
-      const x = minX + Math.floor(world.rand.next() * spanX)
-      const y = minY + Math.floor(world.rand.next() * spanY)
+      const x = minX + Math.floor(world.rand.uniform() * spanX)
+      const y = minY + Math.floor(world.rand.uniform() * spanY)
       const key = cellKey(x, y)
       if (occupied.has(key)) continue
       if (Math.abs(x - px) + Math.abs(y - py) < minPlayerDistance) continue
@@ -193,7 +193,7 @@ export function createRoguelike(options: RoguelikeOptions = {}): {
   for (let i = 0; i < enemiesToSpawn; i++) {
     const pos = reserveFloor(FOV_RADIUS + 2) ?? reserveFloor(0)
     if (!pos) break
-    const enemy = enemies[Math.floor(world.rand.next() * enemies.length)] ?? enemies[0]
+    const enemy = enemies[Math.floor(world.rand.uniform() * enemies.length)] ?? enemies[0]
     world.spawn([
       entry(Position, pos),
       entry(Actor, { name: enemy.name, hp: enemy.hp, faction: 'monster' as const }),
@@ -209,12 +209,12 @@ export function createRoguelike(options: RoguelikeOptions = {}): {
   for (let i = 0; i < resourcesToSpawn; i++) {
     const pos = reserveFloor(3) ?? reserveFloor(0)
     if (!pos) break
-    const resource = resources[Math.floor(world.rand.next() * resources.length)] ?? resources[0]
+    const resource = resources[Math.floor(world.rand.uniform() * resources.length)] ?? resources[0]
     world.spawn([
       entry(Position, pos),
       entry(Resource, {
         kind: resource.kind,
-        amount: resource.min + Math.floor(world.rand.next() * resource.span),
+        amount: resource.min + Math.floor(world.rand.uniform() * resource.span),
       }),
       entry(Renderable, { glyph: resource.glyph }),
     ])
@@ -273,7 +273,7 @@ export function createRoguelike(options: RoguelikeOptions = {}): {
     'fov',
     {
       schedule: 'reactive',
-      reactsTo: And(Has(Player), Changed(Position)),
+      reactsTo: And(Has(Player), OnChanged(Position)),
     },
     () => {
       // Placeholder FOV: reveal tiles/items/actors within radius of the player.
@@ -350,12 +350,12 @@ export function attemptMove(
 
 /** Query helper: living enemies. Leak-free one-shot count (#13). */
 export function enemyCount(world: World): number {
-  return world.count(And(Has(Actor), Not(Player)))
+  return world.countEntities(And(Has(Actor), Not(Player)))
 }
 
 /** Query helper: uncollected resource pickups. Leak-free one-shot count (#13). */
 export function resourceCount(world: World): number {
-  return world.count(Has(Resource))
+  return world.countEntities(Has(Resource))
 }
 
 /** Debug helper: highlight an entity (uses a transient component — omitted from snapshots). */

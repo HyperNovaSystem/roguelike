@@ -34,7 +34,7 @@ export function spatialIndexPlugin(): Plugin {
 
       function rebuild(): void {
         buckets.clear()
-        for (const { id, value: position } of world.entitiesWith(Position)) {
+        for (const { id, value: position } of world.iterEntitiesWith(Position)) {
           const k = key(position.x, position.y)
           let s = buckets.get(k)
           if (!s) {

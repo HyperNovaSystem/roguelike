@@ -31,7 +31,7 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
 
   it('spawns a 128x128 grid + player/resources/enemies without mounting DOM (headless)', () => {
     const { world, width, height } = createRoguelike({ seed: 1 })
-    const tiles = world.count(Has(Tile))
+    const tiles = world.countEntities(Has(Tile))
     expect(tiles).toBe(width * height)
     // ~16k tile entities, plus actors and resource pickups.
     expect(tiles).toBeGreaterThanOrEqual(16000)
@@ -61,7 +61,7 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
     expect(resourceCount(world)).toBe(5)
 
     const monsters = world
-      .select(Has(Actor))
+      .selectViews(Has(Actor))
       .filter((e) => world.getComponent(e.id, Actor)?.faction === 'monster')
     expect(monsters).toHaveLength(3)
     for (const e of monsters) {
@@ -71,7 +71,7 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
       expect(floorAt(pos!.x, pos!.y)).toBe(true)
     }
 
-    for (const e of world.select(Has(Resource))) {
+    for (const e of world.selectViews(Has(Resource))) {
       const pos = world.getComponent(e.id, Position)
       const resource = world.getComponent(e.id, Resource)
       expect(pos).toBeTruthy()
@@ -159,10 +159,10 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
 
   it('PRNG is part of the snapshot: restore replays identically', () => {
     const { world: a } = createRoguelike({ seed: 0xdeadbeef })
-    const seq = [a.rand.next(), a.rand.next(), a.rand.next()]
+    const seq = [a.rand.uniform(), a.rand.uniform(), a.rand.uniform()]
 
     const { world: b } = createRoguelike({ seed: 0xdeadbeef })
-    const seqB = [b.rand.next(), b.rand.next(), b.rand.next()]
+    const seqB = [b.rand.uniform(), b.rand.uniform(), b.rand.uniform()]
     expect(seqB).toEqual(seq) // same seed → same sequence
   })
 
@@ -173,14 +173,14 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
     world.turn(MoveEvent, { entity: playerId, dx: 0, dy: 1 })
     const snap = world.snapshot()
     const posBefore = { ...world.getComponent(playerId, Position)! }
-    const prngBefore = world.rand.next()
+    const prngBefore = world.rand.uniform()
 
     // Restore into a *different* game and verify world state matches.
     const { world: w2 } = createRoguelike({ seed: 99, width: 16, height: 16 })
     w2.restore(snap)
     expect(w2.getComponent(playerId, Position)).toEqual(posBefore)
-    expect(w2.rand.next()).toBe(prngBefore)
-    expect(w2.count(Has(Tile))).toBe(16 * 16)
+    expect(w2.rand.uniform()).toBe(prngBefore)
+    expect(w2.countEntities(Has(Tile))).toBe(16 * 16)
   })
 
   it('transient components (Highlight) are excluded from snapshots', () => {
@@ -223,7 +223,7 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
     const { world, playerId } = createRoguelike({ seed: 11, width: 20, height: 20 })
     world.turn(MoveEvent, { entity: playerId, dx: 1, dy: 0 })
     // A few tiles adjacent to the player should now be Visible.
-    const visible = world.select(Has(Tile))
+    const visible = world.selectViews(Has(Tile))
       .map((v) => v as unknown as { id: number; Visible?: { seen: boolean } })
       .filter((v) => v.Visible?.seen)
     expect(visible.length).toBeGreaterThan(5)
@@ -253,12 +253,12 @@ describe('roguelike — v0.1 surface validation (SPEC exemplar #1)', () => {
       enemyCount: 0,
       resourceCount: 0,
     })
-    expect(world.count(Has(Actor))).toBe(1)
+    expect(world.countEntities(Has(Actor))).toBe(1)
     world.spawn([
       entry(Position, { x: 3, y: 3 }),
       entry(Actor, { name: 'Rat', hp: 2, faction: 'monster' as const }),
     ])
-    expect(world.count(Has(Actor))).toBe(2)
+    expect(world.countEntities(Has(Actor))).toBe(2)
     expect(enemyCount(world)).toBe(1)
     // Player still addressable.
     expect(world.getComponent(playerId, Actor)?.name).toBe('You')

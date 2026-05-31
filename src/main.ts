@@ -1,4 +1,4 @@
-import { And, Changed, describeError, Has, tapErr, Where, type EntityView } from '@domecs/core'
+import { And, OnChanged, describeError, Has, isErr, tapErr, Where, type EntityView } from '@domecs/core'
 import { defineView, mountDOM } from '@domecs/dom'
 import { createInputPlugin } from '@domecs/input'
 import {
@@ -41,7 +41,7 @@ actorSlot.style.height = `${height * CELL}px`
 const tileView = defineView({
   slot: 'world',
   query: Has(Tile),
-  changedOn: [Tile, Visible],
+  changedOn: { mode: 'explicit', types: [Tile, Visible] },
   create(e: EntityView) {
     const el = document.createElement('div')
     el.className = 'tile'
@@ -83,7 +83,7 @@ function applyCamera(): void {
 const actorView = defineView({
   slot: 'actors',
   query: Has(Renderable),
-  changedOn: [Position, Highlight, Visible],
+  changedOn: { mode: 'explicit', types: [Position, Highlight, Visible] },
   create(e) {
     const el = document.createElement('div')
     el.className = 'actor'
@@ -112,10 +112,15 @@ function applyActor(el: HTMLElement, e: EntityView): void {
   el.classList.toggle('highlight', world.has(e.id, Highlight))
 }
 
-mountDOM(world, {
+// mountDOM now returns Result<MountHandle, MountError>. A failed mount is data,
+// not a throw — surface the closed MountError union and bail out of rendering.
+const mountResult = mountDOM(world, {
   slots: { world: worldSlot, actors: actorSlot },
   views: [tileView, actorView],
 })
+if (isErr(mountResult)) {
+  throw new Error(`domecs: mountDOM failed (${mountResult.error.kind})`)
+}
 
 // BETTER_ERRORS — input failure is data; play continues in read-only mode.
 // tapErr (#5) runs the side effect on the Err branch and passes the Result
@@ -135,7 +140,7 @@ function paintStatus(): void {
   const pos = world.getComponent(playerId, Position)
   if (!pos) return
   // Leak-free one-shot count (#13): no live query registered per repaint.
-  const visibleCount = world.count(And(Has(Tile), Where(Visible, (v) => v.seen)))
+  const visibleCount = world.countEntities(And(Has(Tile), Where(Visible, (v) => v.seen)))
   statusEl.textContent = [
     `map: ${width}×${height}`,
     `view: ${VIEW_W}×${VIEW_H}`,
@@ -149,7 +154,7 @@ function paintStatus(): void {
 
 // HUD/status is a nice fit for the new observe(...) sugar: update only after
 // player movement rather than wiring an explicit reactive system by hand.
-world.observe(And(Has(Position), Changed(Position)), {
+world.observe(And(Has(Position), OnChanged(Position)), {
   onChange: (e) => {
     if (e.id === playerId) {
       applyCamera()
